@@ -22,13 +22,13 @@ use crate::{
 ///
 /// ```rust,no_run
 /// use tower_a2a::prelude::*;
+/// use std::time::Duration;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let url = "https://agent.example.com".parse().unwrap();
-/// let mut client = A2AClientBuilder::new(url)
-///     .with_http()
+/// let mut client = A2AClientBuilder::new_http(url)
 ///     .with_bearer_auth("token123".to_string())
-///     .with_timeout(std::time::Duration::from_secs(60))
+///     .with_timeout(Duration::from_secs(60))
 ///     .build()?;
 ///
 /// let agent_card = client.discover().await?;
@@ -36,9 +36,17 @@ use crate::{
 /// # Ok(())
 /// # }
 /// ```
-pub struct A2AClientBuilder {
+///
+/// # Compiler Error
+/// This will fail to compile if it is not clear to the compilerwhich typeimplementing
+/// `Transport` is being used as underlying transport. This is expected behaviour.
+///
+/// ```compile_fail
+/// let client = A2AClientBuilder::new(agent_url()).build();
+/// ```
+pub struct A2AClientBuilder<T: Transport> {
     agent_url: Url,
-    transport: Option<Box<dyn Transport>>,
+    transport: Option<T>,
     codec: Option<Arc<dyn Codec>>,
     auth: Option<AuthCredentials>,
     timeout: Option<Duration>,
@@ -46,12 +54,12 @@ pub struct A2AClientBuilder {
     validate_responses: bool,
 }
 
-impl A2AClientBuilder {
-    /// Create a new client builder
+impl<T: Transport> A2AClientBuilder<T> {
+    /// Use a custom transport
     ///
     /// # Arguments
     ///
-    /// * `agent_url` - The base URL of the agent (e.g., "<https://agent.example.com>")
+    /// * `transport` - The transport implementation to use
     pub fn new(agent_url: Url) -> Self {
         Self {
             agent_url,
@@ -64,22 +72,13 @@ impl A2AClientBuilder {
         }
     }
 
-    /// Use HTTP transport (HTTP+JSON binding)
-    ///
-    /// This is the most common transport for A2A protocol
-    pub fn with_http(mut self) -> Self {
-        self.transport = Some(Box::new(HttpTransport::new(self.agent_url.clone())));
-        self.codec = Some(Arc::new(JsonCodec::new()));
-        self
-    }
-
     /// Use a custom transport
     ///
     /// # Arguments
     ///
     /// * `transport` - The transport implementation to use
-    pub fn with_transport(mut self, transport: impl Transport) -> Self {
-        self.transport = Some(Box::new(transport));
+    pub fn with_transport(mut self, transport: T) -> Self {
+        self.transport = Some(transport);
         self
     }
 
@@ -178,7 +177,7 @@ impl A2AClientBuilder {
     /// Returns an error if:
     /// - No transport has been configured
     /// - No codec has been configured (usually set automatically with transport)
-    pub fn build(self) -> Result<AgentClient<A2AProtocolService<Box<dyn Transport>>>, A2AError> {
+    pub fn build(self) -> Result<AgentClient<A2AProtocolService<T>>, A2AError> {
         // Ensure transport is configured
         let transport = self.transport.ok_or_else(|| {
             A2AError::Protocol(
@@ -205,6 +204,26 @@ impl A2AClientBuilder {
     }
 }
 
+impl A2AClientBuilder<HttpTransport> {
+    /// Create a new client builder with HTTP transport (HTTP+JSON binding)
+    ///
+    /// # Arguments
+    ///
+    /// * `agent_url` - The base URL of the agent (e.g., "<https://agent.example.com>")
+    pub fn new_http(agent_url: Url) -> Self {
+        let transport = HttpTransport::new(agent_url.clone());
+        Self {
+            agent_url,
+            transport: Some(transport),
+            codec: Some(Arc::new(JsonCodec::new())),
+            auth: None,
+            timeout: Some(Duration::from_secs(30)),
+            max_retries: 3,
+            validate_responses: true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::transport::mock::MockTransport;
@@ -217,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_builder_with_http() {
-        let client = A2AClientBuilder::new(agent_url()).with_http().build();
+        let client = A2AClientBuilder::new_http(agent_url()).build();
 
         assert!(client.is_ok());
     }
@@ -236,8 +255,7 @@ mod tests {
 
     #[test]
     fn test_builder_with_auth() {
-        let client = A2AClientBuilder::new(agent_url())
-            .with_http()
+        let client = A2AClientBuilder::new_http(agent_url())
             .with_bearer_auth("test-token")
             .build();
 
@@ -246,8 +264,7 @@ mod tests {
 
     #[test]
     fn test_builder_with_timeout() {
-        let client = A2AClientBuilder::new(agent_url())
-            .with_http()
+        let client = A2AClientBuilder::new_http(agent_url())
             .with_timeout(Duration::from_secs(60))
             .build();
 
@@ -255,16 +272,8 @@ mod tests {
     }
 
     #[test]
-    fn test_builder_missing_transport() {
-        let client = A2AClientBuilder::new(agent_url()).build();
-
-        assert!(client.is_err());
-    }
-
-    #[test]
     fn test_builder_all_options() {
-        let client = A2AClientBuilder::new(agent_url())
-            .with_http()
+        let client = A2AClientBuilder::new_http(agent_url())
             .with_bearer_auth("token")
             .with_timeout(Duration::from_secs(45))
             .with_max_retries(5)

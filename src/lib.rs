@@ -22,8 +22,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let url = "https://agent.example.com".parse().unwrap();
-//!     let mut client = A2AClientBuilder::new(url)
-//!         .with_http()
+//!     let mut client = A2AClientBuilder::new_http(url)
 //!         .with_bearer_auth("token123".to_string())
 //!         .with_timeout(Duration::from_secs(30))
 //!         .build()?;
@@ -47,6 +46,8 @@ pub mod prelude {
     pub use crate::{
         client::{A2AClientBuilder, AgentClient},
         protocol::error::A2AError,
-        protocol::{A2AOperation, AgentCard, Message, MessagePart, Role, Task, TaskStatus},
+        protocol::{
+            A2AOperation, AgentCard, Artifact, Message, MessagePart, Role, Task, TaskStatus,
+        },
     };
 }

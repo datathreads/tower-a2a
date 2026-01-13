@@ -306,10 +306,6 @@ impl Transport for WebSocketTransport {
     fn supports_streaming(&self) -> bool {
         true
     }
-
-    fn clone_box(&self) -> Box<dyn Transport> {
-        Box::new(self.clone())
-    }
 }
 
 #[cfg(test)]

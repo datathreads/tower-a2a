@@ -60,10 +60,6 @@ impl Transport for MockTransport {
     fn supports_streaming(&self) -> bool {
         false
     }
-
-    fn clone_box(&self) -> Box<dyn Transport> {
-        Box::new(self.clone())
-    }
 }
 
 impl std::fmt::Debug for MockTransport {

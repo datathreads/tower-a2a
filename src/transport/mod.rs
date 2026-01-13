@@ -113,7 +113,7 @@ impl TransportResponse {
 /// This trait abstracts over different network protocols (HTTP, gRPC, WebSocket, etc.)
 /// allowing the A2A protocol layer to work with any underlying transport.
 #[async_trait]
-pub trait Transport: Send + Sync + 'static {
+pub trait Transport: Clone + Send + Sync + 'static {
     /// Check if the transport is ready to accept requests
     ///
     /// This is used by Tower's Service trait to implement backpressure
@@ -146,23 +146,11 @@ pub trait Transport: Send + Sync + 'static {
     fn supports_streaming(&self) -> bool {
         false
     }
-
-    /// Clone the transport
-    ///
-    /// Required for Tower's Service trait which needs cloneable services
-    fn clone_box(&self) -> Box<dyn Transport>;
-}
-
-/// Helper trait to make Transport cloneable
-impl Clone for Box<dyn Transport> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
 }
 
 /// Implement Transport for `Box<dyn Transport>`
 #[async_trait]
-impl Transport for Box<dyn Transport> {
+impl<T: Transport> Transport for Box<T> {
     fn poll_ready(
         &mut self,
         cx: &mut Context<'_>,
@@ -183,9 +171,5 @@ impl Transport for Box<dyn Transport> {
 
     fn supports_streaming(&self) -> bool {
         (**self).supports_streaming()
-    }
-
-    fn clone_box(&self) -> Box<dyn Transport> {
-        (**self).clone_box()
     }
 }

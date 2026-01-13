@@ -20,8 +20,7 @@ use tower_service::Service;
 ///
 /// # async fn example() -> Result<(), A2AError> {
 /// let url = "https://agent.example.com".parse().unwrap();
-/// let mut client = A2AClientBuilder::new(url)
-///     .with_http()
+/// let mut client = A2AClientBuilder::new_http(url)
 ///     .build()?;
 ///
 /// let message = Message::user("Hello, agent!");

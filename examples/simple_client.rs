@@ -18,8 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build the A2A client with HTTP transport and bearer authentication
     let url = AGENT_URL.parse().unwrap();
-    let mut client = A2AClientBuilder::new(url)
-        .with_http()
+    let mut client = A2AClientBuilder::new_http(url)
         .with_bearer_auth(AUTH_TOKEN.to_string())
         .with_timeout(Duration::from_secs(30))
         .build()?;

@@ -166,10 +166,6 @@ impl Transport for HttpTransport {
     fn supports_streaming(&self) -> bool {
         true
     }
-
-    fn clone_box(&self) -> Box<dyn Transport> {
-        Box::new(self.clone())
-    }
 }
 
 #[cfg(test)]
@@ -181,14 +177,5 @@ mod tests {
         let transport = HttpTransport::new(Url::parse("https://example.com").unwrap());
         assert_eq!(transport.base_url().as_str(), "https://example.com/");
         assert!(transport.supports_streaming());
-    }
-
-    #[test]
-    fn test_http_transport_clone() {
-        let transport = HttpTransport::new(Url::parse("https://example.com").unwrap());
-        let boxed: Box<dyn Transport> = Box::new(transport);
-        let cloned = boxed.clone_box();
-
-        assert_eq!(cloned.base_url().as_str(), "https://example.com/");
     }
 }
