@@ -2,11 +2,13 @@
 
 use std::time::Duration;
 
+use url::Url;
+
 /// Configuration for an A2A client
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
     /// Base URL of the agent
-    pub agent_url: String,
+    pub agent_url: Url,
 
     /// Default request timeout
     pub timeout: Duration,
@@ -20,9 +22,9 @@ pub struct ClientConfig {
 
 impl ClientConfig {
     /// Create a new client configuration
-    pub fn new(agent_url: impl Into<String>) -> Self {
+    pub fn new(agent_url: Url) -> Self {
         Self {
-            agent_url: agent_url.into(),
+            agent_url,
             timeout: Duration::from_secs(30),
             max_retries: 3,
             validate_responses: true,
@@ -50,6 +52,6 @@ impl ClientConfig {
 
 impl Default for ClientConfig {
     fn default() -> Self {
-        Self::new("")
+        Self::new("http://.".parse().unwrap())
     }
 }

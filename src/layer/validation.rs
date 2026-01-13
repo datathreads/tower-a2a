@@ -120,8 +120,8 @@ impl<S> A2AValidationService<S> {
         }
 
         // Validate agent URL
-        if req.context.agent_url.is_empty() {
-            return Err(A2AError::Validation("Agent URL cannot be empty".into()));
+        if !req.context.agent_url.has_host() {
+            return Err(A2AError::Validation("Agent URL must have a host".into()));
         }
 
         Ok(())
@@ -216,6 +216,10 @@ mod tests {
 
     use super::*;
 
+    fn agent_url() -> url::Url {
+        "https://example.com".parse().unwrap()
+    }
+
     #[test]
     fn test_validate_send_message() {
         let operation = A2AOperation::SendMessage {
@@ -225,7 +229,7 @@ mod tests {
             task_id: None,
         };
 
-        let context = RequestContext::new("https://example.com");
+        let context = RequestContext::new(agent_url());
         let request = A2ARequest::new(operation, context);
 
         assert!(A2AValidationService::<()>::validate_request(&request).is_ok());
@@ -243,7 +247,7 @@ mod tests {
             task_id: None,
         };
 
-        let context = RequestContext::new("https://example.com");
+        let context = RequestContext::new(agent_url());
         let request = A2ARequest::new(operation, context);
 
         assert!(A2AValidationService::<()>::validate_request(&request).is_err());

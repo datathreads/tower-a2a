@@ -2,6 +2,8 @@
 
 use std::{collections::HashMap, time::Duration};
 
+use url::Url;
+
 use crate::{layer::auth::AuthCredentials, protocol::operation::A2AOperation};
 
 /// A request to the A2A service
@@ -27,7 +29,7 @@ impl A2ARequest {
 #[derive(Debug, Clone)]
 pub struct RequestContext {
     /// Base URL of the target agent
-    pub agent_url: String,
+    pub agent_url: Url,
 
     /// Authentication credentials (if any)
     pub auth: Option<AuthCredentials>,
@@ -41,9 +43,9 @@ pub struct RequestContext {
 
 impl RequestContext {
     /// Create a new request context
-    pub fn new(agent_url: impl Into<String>) -> Self {
+    pub fn new(agent_url: Url) -> Self {
         Self {
-            agent_url: agent_url.into(),
+            agent_url,
             auth: None,
             timeout: Some(Duration::from_secs(30)),
             metadata: HashMap::new(),
@@ -72,7 +74,7 @@ impl RequestContext {
 impl Default for RequestContext {
     fn default() -> Self {
         Self {
-            agent_url: String::new(),
+            agent_url: Url::parse("http://localhost:8080").unwrap(),
             auth: None,
             timeout: Some(Duration::from_secs(30)),
             metadata: HashMap::new(),
@@ -85,13 +87,17 @@ mod tests {
     use super::*;
     use crate::protocol::message::Message;
 
+    fn agent_url() -> Url {
+        "https://example.com".parse().unwrap()
+    }
+
     #[test]
     fn test_request_context_creation() {
-        let context = RequestContext::new("https://example.com")
+        let context = RequestContext::new(agent_url())
             .with_timeout(Duration::from_secs(60))
             .with_metadata("key", "value");
 
-        assert_eq!(context.agent_url, "https://example.com");
+        assert_eq!(context.agent_url, agent_url());
         assert_eq!(context.timeout, Some(Duration::from_secs(60)));
         assert_eq!(context.metadata.get("key"), Some(&"value".to_string()));
     }
@@ -105,9 +111,9 @@ mod tests {
             task_id: None,
         };
 
-        let context = RequestContext::new("https://example.com");
+        let context = RequestContext::new(agent_url());
         let request = A2ARequest::new(operation, context);
 
-        assert_eq!(request.context.agent_url, "https://example.com");
+        assert_eq!(request.context.agent_url, agent_url());
     }
 }

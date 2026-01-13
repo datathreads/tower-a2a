@@ -43,7 +43,7 @@ pub enum A2AError {
 
     /// Agent not found or unreachable
     #[error("Agent not found or unreachable: {agent_url}")]
-    AgentNotFound { agent_url: String },
+    AgentNotFound { agent_url: url::Url },
 
     /// Rate limit exceeded
     #[error("Rate limit exceeded")]

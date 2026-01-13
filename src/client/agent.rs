@@ -316,6 +316,10 @@ mod tests {
 
     use super::*;
 
+    fn agent_url() -> url::Url {
+        "https://example.com".parse().unwrap()
+    }
+
     #[tokio::test]
     async fn test_send_message() {
         let transport = MockTransport::new(|_req| {
@@ -326,7 +330,7 @@ mod tests {
 
         let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
-        let config = ClientConfig::new("https://example.com");
+        let config = ClientConfig::new(agent_url());
         let mut client = AgentClient::new(service, config);
 
         let message = Message::user("Hello");
@@ -345,7 +349,7 @@ mod tests {
 
         let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
-        let config = ClientConfig::new("https://example.com");
+        let config = ClientConfig::new(agent_url());
         let mut client = AgentClient::new(service, config);
 
         let task = client.get_task("task-456".to_string()).await.unwrap();
@@ -365,7 +369,7 @@ mod tests {
 
         let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
-        let config = ClientConfig::new("https://example.com");
+        let config = ClientConfig::new(agent_url());
         let mut client = AgentClient::new(service, config);
 
         let card = client.discover().await.unwrap();
