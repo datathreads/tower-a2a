@@ -82,9 +82,32 @@ Run the example with:
 cargo run --example simple_client
 ```
 
-## Contributing
+## 🚧 TODO:
 
-Contributions in good faith are welcome! Please open an issue or submit a pull request. Do note that only if the authors deem it to be appropriate will they be considered.
+We welcome contributions! Here are areas where help is needed:
+
+### Server Implementation
+- [ ] **A2A Server Service** - Implement Tower service to *host* A2A-compliant agents (currently only the client-side is implemented)
+- [ ] **Request Router** - Route incoming A2A operations to appropriate task handlers
+
+### Transports
+- [ ] **gRPC Transport** - Implement `Transport` trait for gRPC
+- [ ] **Custom Transport Guide** - Documentation for implementing custom transports
+
+### Performance
+- [ ] **Buffer Pool** - Implement `protocol/buffer_pool.rs` for pre-allocated serialization buffers
+- [ ] **Criterion Benchmarks** - Add benchmarks for protocol parsing and serialization (target: <100μs round-trip)
+
+### Streaming
+- [ ] **SSE Streaming** - Complete Server-Sent Events support for real-time task updates
+- [ ] **WebSocket Bidirectional Streaming** - Full duplex streaming for long-running tasks
+
+### Documentation & Examples
+- [ ] **Server Example** - Example showing how to host an A2A-compliant agent
+- [ ] **Multi-Agent Example** - Demo of agents communicating with each other
+- [ ] **Integration Tests** - Expand test coverage for full layer stack scenarios
+
+Please feel free to start a discussion to let us know what you think, open an issue or submit a pull request. Please be kind and respectful.
 
 ## Resources
 
