@@ -100,7 +100,7 @@ impl HttpTransport {
         let byte_stream = response.bytes_stream();
 
         // Parse SSE events
-        let sse_codec = SseCodec::new();
+        let sse_codec = SseCodec;
         Ok(sse_codec.parse_stream(byte_stream))
     }
 }

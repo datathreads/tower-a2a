@@ -103,7 +103,7 @@ impl AgentCard {
 }
 
 /// Agent capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentCapabilities {
     /// Supports streaming responses
     #[serde(default)]
@@ -129,13 +129,7 @@ pub struct AgentCapabilities {
 impl AgentCapabilities {
     /// Create capabilities with default values (all false)
     pub fn new() -> Self {
-        Self {
-            streaming: false,
-            push_notifications: false,
-            task_management: false,
-            multi_turn: false,
-            supported_part_types: None,
-        }
+        Self::default()
     }
 
     /// Enable streaming
@@ -160,12 +154,6 @@ impl AgentCapabilities {
     pub fn with_multi_turn(mut self) -> Self {
         self.multi_turn = true;
         self
-    }
-}
-
-impl Default for AgentCapabilities {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

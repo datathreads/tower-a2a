@@ -185,7 +185,7 @@ mod tests {
             TransportResponse::new(200).body(Bytes::from(json))
         });
 
-        let codec = Arc::new(JsonCodec::new());
+        let codec = Arc::new(JsonCodec);
         let mut service = A2AProtocolService::new(transport, codec);
 
         let operation = A2AOperation::SendMessage {
@@ -215,7 +215,7 @@ mod tests {
             TransportResponse::new(401).body(Bytes::from(error_json))
         });
 
-        let codec = Arc::new(JsonCodec::new());
+        let codec = Arc::new(JsonCodec);
         let mut service = A2AProtocolService::new(transport, codec);
 
         let operation = A2AOperation::GetTask {

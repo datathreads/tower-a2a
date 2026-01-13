@@ -49,7 +49,7 @@ impl SseEvent {
 }
 
 /// SSE codec for parsing streaming responses
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SseCodec;
 
 impl SseCodec {
@@ -116,12 +116,6 @@ impl SseCodec {
     }
 }
 
-impl Default for SseCodec {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use futures::StreamExt;
@@ -182,7 +176,7 @@ mod tests {
     async fn test_parse_sse_stream() {
         use futures::pin_mut;
 
-        let codec = SseCodec::new();
+        let codec = SseCodec;
 
         // Create a mock byte stream with SSE events
         let sse_data = "data: {\"jsonrpc\":\"2.0\",\"result\":{\"kind\":\"status-update\",\"state\":\"running\"},\"id\":\"1\"}\n\n\
@@ -210,7 +204,7 @@ mod tests {
     async fn test_parse_sse_error() {
         use futures::pin_mut;
 
-        let codec = SseCodec::new();
+        let codec = SseCodec;
 
         let sse_data = "data: {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Invalid Request\"},\"id\":\"1\"}\n\n";
 

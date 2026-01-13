@@ -186,7 +186,7 @@ impl<T: Transport> A2AClientBuilder<T> {
         })?;
 
         // Ensure codec is configured (should be set with transport)
-        let codec = self.codec.unwrap_or_else(|| Arc::new(JsonCodec::new()));
+        let codec = self.codec.unwrap_or_else(|| Arc::new(JsonCodec));
 
         // Create the core protocol service
         let service = A2AProtocolService::new(transport, codec);
@@ -215,7 +215,7 @@ impl A2AClientBuilder<HttpTransport> {
         Self {
             agent_url,
             transport: Some(transport),
-            codec: Some(Arc::new(JsonCodec::new())),
+            codec: Some(Arc::new(JsonCodec)),
             auth: None,
             timeout: Some(Duration::from_secs(30)),
             max_retries: 3,
@@ -247,7 +247,7 @@ mod tests {
 
         let client = A2AClientBuilder::new(agent_url())
             .with_transport(transport)
-            .with_codec(Arc::new(JsonCodec::new()))
+            .with_codec(Arc::new(JsonCodec))
             .build();
 
         assert!(client.is_ok());

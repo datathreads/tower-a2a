@@ -51,30 +51,20 @@ struct JsonRpcError {
 ///
 /// This codec implements the JSON-RPC 2.0 protocol binding for A2A.
 /// It wraps operations in JSON-RPC request envelopes and unwraps responses.
-#[derive(Debug, Clone)]
-pub struct JsonRpcCodec {
-    /// Inner JSON codec for encoding the params
-    inner: JsonCodec,
-}
+#[derive(Debug, Clone, Default)]
+pub struct JsonRpcCodec;
 
 impl JsonRpcCodec {
     /// Create a new JSON-RPC codec
     pub fn new() -> Self {
-        Self {
-            inner: JsonCodec::new(),
-        }
+        Self
     }
 
     /// Map an A2A operation to a JSON-RPC method name
     fn operation_to_method(operation: &A2AOperation) -> &'static str {
         match operation {
-            A2AOperation::SendMessage { stream, .. } => {
-                if *stream {
-                    "message/stream"
-                } else {
-                    "message/send"
-                }
-            }
+            A2AOperation::SendMessage { stream: true, .. } => "message/stream",
+            A2AOperation::SendMessage { stream: false, .. } => "message/send",
             A2AOperation::GetTask { .. } => "task/get",
             A2AOperation::ListTasks { .. } => "task/list",
             A2AOperation::CancelTask { .. } => "task/cancel",
@@ -85,16 +75,10 @@ impl JsonRpcCodec {
     }
 }
 
-impl Default for JsonRpcCodec {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Codec for JsonRpcCodec {
     fn encode_request(&self, operation: &A2AOperation) -> Result<Bytes, A2AError> {
         // Encode the operation using the inner JSON codec
-        let params_bytes = self.inner.encode_request(operation)?;
+        let params_bytes = JsonCodec.encode_request(operation)?;
         let params: Value = serde_json::from_slice(&params_bytes)?;
 
         // Wrap in JSON-RPC 2.0 envelope
@@ -138,7 +122,7 @@ impl Codec for JsonRpcCodec {
 
         // Decode the result using the inner JSON codec
         let result_bytes = serde_json::to_vec(&result)?;
-        self.inner.decode_response(&result_bytes, operation)
+        JsonCodec.decode_response(&result_bytes, operation)
     }
 
     fn content_type(&self) -> &str {
@@ -154,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_encode_send_message() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         let message = Message::user("Hello");
 
         let operation = A2AOperation::SendMessage {
@@ -177,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_encode_streaming_message() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         let message = Message::user("Hello");
 
         let operation = A2AOperation::SendMessage {
@@ -228,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_decode_success_response() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         let json = r#"{
             "jsonrpc": "2.0",
             "result": {
@@ -259,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_decode_error_response() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         let json = r#"{
             "jsonrpc": "2.0",
             "error": {
@@ -287,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_decode_missing_result() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         let json = r#"{
             "jsonrpc": "2.0",
             "id": "req-123"
@@ -310,7 +294,7 @@ mod tests {
 
     #[test]
     fn test_content_type() {
-        let codec = JsonRpcCodec::new();
+        let codec = JsonRpcCodec;
         assert_eq!(codec.content_type(), "application/a2a+json");
     }
 }

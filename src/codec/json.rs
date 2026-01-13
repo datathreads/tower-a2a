@@ -15,19 +15,13 @@ use crate::{
 };
 
 /// JSON codec for the HTTP+JSON protocol binding
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct JsonCodec;
 
 impl JsonCodec {
     /// Create a new JSON codec
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for JsonCodec {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -133,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_encode_send_message() {
-        let codec = JsonCodec::new();
+        let codec = JsonCodec;
         let message = Message::user("Hello");
 
         let operation = A2AOperation::SendMessage {
@@ -154,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_decode_task_response() {
-        let codec = JsonCodec::new();
+        let codec = JsonCodec;
         let json = r#"{
             "id": "task-123",
             "status": "submitted",
@@ -181,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_content_type() {
-        let codec = JsonCodec::new();
+        let codec = JsonCodec;
         assert_eq!(codec.content_type(), "application/a2a+json");
     }
 }

@@ -324,7 +324,7 @@ mod tests {
             TransportResponse::new(200).body(Bytes::from(json))
         });
 
-        let codec = Arc::new(JsonCodec::new());
+        let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
         let config = ClientConfig::new("https://example.com");
         let mut client = AgentClient::new(service, config);
@@ -343,7 +343,7 @@ mod tests {
             TransportResponse::new(200).body(Bytes::from(json))
         });
 
-        let codec = Arc::new(JsonCodec::new());
+        let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
         let config = ClientConfig::new("https://example.com");
         let mut client = AgentClient::new(service, config);
@@ -363,7 +363,7 @@ mod tests {
             TransportResponse::new(200).body(Bytes::from(json))
         });
 
-        let codec = Arc::new(JsonCodec::new());
+        let codec = Arc::new(JsonCodec);
         let service = A2AProtocolService::new(transport, codec);
         let config = ClientConfig::new("https://example.com");
         let mut client = AgentClient::new(service, config);
