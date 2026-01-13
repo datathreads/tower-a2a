@@ -63,6 +63,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = client.poll_until_complete(task.id, 1000, 30).await?;
     println!("Task status: {:?}", result.status);
 
+    // Access artifacts from completed task
+    for Artifact { artifact_id, .. } in &result.artifacts {
+        println!("Artifact: {artifact_id}");
+    }
+
     Ok(())
 }
 ```

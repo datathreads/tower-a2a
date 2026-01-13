@@ -120,7 +120,7 @@ impl Codec for JsonCodec {
     }
 
     fn content_type(&self) -> &str {
-        "application/json"
+        "application/a2a+json"
     }
 }
 
@@ -182,6 +182,6 @@ mod tests {
     #[test]
     fn test_content_type() {
         let codec = JsonCodec::new();
-        assert_eq!(codec.content_type(), "application/json");
+        assert_eq!(codec.content_type(), "application/a2a+json");
     }
 }

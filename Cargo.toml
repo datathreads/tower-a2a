@@ -1,6 +1,6 @@
 [package]
 name = "tower-a2a"
-version = "0.1.0"
+version = "1.0.0"
 description = "A Tower middleware layer for the A2A Protocol"
 repository = "https://github.com/datathreads/tower-a2a.git"
 authors = ["Devdutt Shenoi <devdutt@datathreads.ai>"]

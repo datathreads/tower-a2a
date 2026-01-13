@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::{error::TaskError, message::Message};
+use super::{error::TaskError, message::Message, Artifact};
 
 /// A task in the A2A protocol
 ///
@@ -20,9 +20,13 @@ pub struct Task {
     /// Input message that created this task
     pub input: Message,
 
-    /// Output message (present when task is completed)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output: Option<Message>,
+    /// Artifacts produced by this task (replaces legacy 'output' field)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifacts: Vec<Artifact>,
+
+    /// Message exchange history for this task
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub history: Vec<Message>,
 
     /// Error information (present if task failed)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,7 +52,8 @@ impl Task {
             id: id.into(),
             status: TaskStatus::Submitted,
             input,
-            output: None,
+            artifacts: Vec::new(),
+            history: Vec::new(),
             error: None,
             created_at: Utc::now(),
             updated_at: None,
@@ -87,9 +92,16 @@ impl Task {
         self
     }
 
-    /// Set the task output
-    pub fn with_output(mut self, output: Message) -> Self {
-        self.output = Some(output);
+    /// Add an artifact to the task
+    pub fn with_artifact(mut self, artifact: Artifact) -> Self {
+        self.artifacts.push(artifact);
+        self.updated_at = Some(Utc::now());
+        self
+    }
+
+    /// Add a message to the history
+    pub fn with_history_message(mut self, message: Message) -> Self {
+        self.history.push(message);
         self.updated_at = Some(Utc::now());
         self
     }

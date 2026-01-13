@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tower_a2a::{
     prelude::*,
-    protocol::{AgentCapabilities, TaskError},
+    protocol::{message::FileContent, AgentCapabilities, TaskError},
 };
 
 // Configuration - update these to match your agent
@@ -62,16 +62,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("💬 Sending message to agent...");
     let message = Message::user("What is the weather like in San Francisco?");
 
-    let (id, output) = match client.send_message(message).await {
+    let (id, artifacts) = match client.send_message(message).await {
         Ok(Task {
-            id, status, output, ..
+            id,
+            status,
+            artifacts,
+            ..
         }) => {
             println!("✓ Task created: {id}");
             println!("  Status: {status:?}");
-            (id, output)
+            (id, artifacts)
         }
         Err(e) => {
-            eprintln!("✗ Failed to send message: {}", e);
+            eprintln!("✗ Failed to send message: {e}");
             return Ok(());
         }
     };
@@ -83,18 +86,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✓ Task completed!");
             println!("  Status: {status:?}");
 
-            if let Some(output) = output {
-                println!("\n📝 Agent response:");
-                for part in &output.parts {
-                    match part {
-                        MessagePart::Text { text } => {
-                            println!("  {text}");
-                        }
-                        MessagePart::File { file_uri, .. } => {
-                            println!("  [File: {file_uri}]");
-                        }
-                        MessagePart::Data { .. } => {
-                            println!("  [Structured data]");
+            if !artifacts.is_empty() {
+                println!("\n📝 Agent artifacts:");
+                for Artifact {
+                    artifact_id, parts, ..
+                } in &artifacts
+                {
+                    println!("  Artifact: {artifact_id}");
+                    for part in parts {
+                        match part {
+                            MessagePart::Text { text } => {
+                                println!("    {text}");
+                            }
+                            MessagePart::File {
+                                file:
+                                    FileContent {
+                                        name,
+                                        file_with_uri,
+                                        ..
+                                    },
+                            } => {
+                                println!(
+                                    "    [File: {name} - {}]",
+                                    file_with_uri.as_ref().unwrap_or(&"inline".to_string())
+                                );
+                            }
+                            MessagePart::Data { .. } => {
+                                println!("    [Structured data]");
+                            }
                         }
                     }
                 }

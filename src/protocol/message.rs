@@ -58,9 +58,9 @@ impl Message {
         Self::new(Role::User, text)
     }
 
-    /// Create an assistant message with text content
-    pub fn assistant(text: impl Into<String>) -> Self {
-        Self::new(Role::Assistant, text)
+    /// Create an agent message with text content
+    pub fn agent(text: impl Into<String>) -> Self {
+        Self::new(Role::Agent, text)
     }
 
     /// Create a new message builder
@@ -168,7 +168,10 @@ impl MessageBuilder {
     /// Panics if role is not set or if parts are empty
     pub fn build(self) -> Message {
         let role = self.role.expect("Message role is required");
-        assert!(!self.parts.is_empty(), "Message must have at least one part");
+        assert!(
+            !self.parts.is_empty(),
+            "Message must have at least one part"
+        );
 
         Message {
             role,
@@ -189,11 +192,28 @@ pub enum Role {
     /// Message from a user
     User,
 
-    /// Message from an AI assistant/agent
-    Assistant,
+    /// Message from an AI agent
+    Agent,
+}
 
-    /// System message (optional, for context)
-    System,
+/// File content for file parts
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileContent {
+    /// MIME type of the file
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+
+    /// Name of the file
+    pub name: String,
+
+    /// URI reference to the file
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_with_uri: Option<String>,
+
+    /// Base64-encoded file content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_with_bytes: Option<String>,
 }
 
 /// A part of a message
@@ -210,23 +230,14 @@ pub enum MessagePart {
 
     /// File reference
     File {
-        /// URI of the file
-        #[serde(rename = "fileUri")]
-        file_uri: String,
-
-        /// MIME type of the file
-        #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
-        mime_type: Option<String>,
+        /// File content (nested structure per spec v1.0+)
+        file: FileContent,
     },
 
     /// Structured data
     Data {
         /// The structured data
         data: Value,
-
-        /// MIME type of the data
-        #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
-        mime_type: Option<String>,
     },
 }
 
@@ -236,36 +247,53 @@ impl MessagePart {
         Self::Text { text: text.into() }
     }
 
-    /// Create a file part
-    pub fn file(file_uri: impl Into<String>) -> Self {
+    /// Create a file part with URI reference
+    pub fn file(name: impl Into<String>, file_uri: impl Into<String>) -> Self {
         Self::File {
-            file_uri: file_uri.into(),
-            mime_type: None,
+            file: FileContent {
+                media_type: None,
+                name: name.into(),
+                file_with_uri: Some(file_uri.into()),
+                file_with_bytes: None,
+            },
         }
     }
 
-    /// Create a file part with MIME type
-    pub fn file_with_type(file_uri: impl Into<String>, mime_type: impl Into<String>) -> Self {
+    /// Create a file part with URI and media type
+    pub fn file_with_type(
+        name: impl Into<String>,
+        file_uri: impl Into<String>,
+        media_type: impl Into<String>,
+    ) -> Self {
         Self::File {
-            file_uri: file_uri.into(),
-            mime_type: Some(mime_type.into()),
+            file: FileContent {
+                media_type: Some(media_type.into()),
+                name: name.into(),
+                file_with_uri: Some(file_uri.into()),
+                file_with_bytes: None,
+            },
+        }
+    }
+
+    /// Create a file part with base64-encoded bytes
+    pub fn file_with_bytes(
+        name: impl Into<String>,
+        file_bytes: impl Into<String>,
+        media_type: Option<String>,
+    ) -> Self {
+        Self::File {
+            file: FileContent {
+                media_type,
+                name: name.into(),
+                file_with_uri: None,
+                file_with_bytes: Some(file_bytes.into()),
+            },
         }
     }
 
     /// Create a data part
     pub fn data(data: Value) -> Self {
-        Self::Data {
-            data,
-            mime_type: None,
-        }
-    }
-
-    /// Create a data part with MIME type
-    pub fn data_with_type(data: Value, mime_type: impl Into<String>) -> Self {
-        Self::Data {
-            data,
-            mime_type: Some(mime_type.into()),
-        }
+        Self::Data { data }
     }
 }
 
@@ -311,7 +339,7 @@ mod tests {
     #[test]
     fn test_message_part_types() {
         let text = MessagePart::text("Hello");
-        let file = MessagePart::file("file://path/to/file");
+        let file = MessagePart::file("myfile.txt", "file://path/to/file");
         let data = MessagePart::data(json!({"key": "value"}));
 
         assert!(matches!(text, MessagePart::Text { .. }));
@@ -322,14 +350,14 @@ mod tests {
     #[test]
     fn test_message_builder() {
         let msg = Message::builder()
-            .role(Role::User)
+            .role(Role::Agent)
             .parts(vec![MessagePart::text("Hello")])
             .message_id("msg-123")
             .task_id("task-456")
             .context_id("ctx-789")
             .build();
 
-        assert_eq!(msg.role, Role::User);
+        assert_eq!(msg.role, Role::Agent);
         assert_eq!(msg.parts.len(), 1);
         assert_eq!(msg.message_id, Some("msg-123".to_string()));
         assert_eq!(msg.task_id, Some("task-456".to_string()));
@@ -339,7 +367,7 @@ mod tests {
     #[test]
     fn test_message_builder_with_part() {
         let msg = Message::builder()
-            .role(Role::Assistant)
+            .role(Role::Agent)
             .part(MessagePart::text("First"))
             .part(MessagePart::text("Second"))
             .build();

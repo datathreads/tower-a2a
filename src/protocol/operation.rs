@@ -78,17 +78,17 @@ impl A2AOperation {
         match self {
             A2AOperation::SendMessage { task_id, .. } => {
                 if let Some(id) = task_id {
-                    format!("/tasks/{}", id)
+                    format!("/v1/tasks/{}", id)
                 } else {
-                    "/tasks".to_string()
+                    "/v1/tasks".to_string()
                 }
             }
-            A2AOperation::GetTask { task_id } => format!("/tasks/{}", task_id),
-            A2AOperation::ListTasks { .. } => "/tasks".to_string(),
-            A2AOperation::CancelTask { task_id } => format!("/tasks/{}/cancel", task_id),
+            A2AOperation::GetTask { task_id } => format!("/v1/tasks/{}", task_id),
+            A2AOperation::ListTasks { .. } => "/v1/tasks".to_string(),
+            A2AOperation::CancelTask { task_id } => format!("/v1/tasks/{}:cancel", task_id),
             A2AOperation::DiscoverAgent => "/.well-known/agent-card.json".to_string(),
-            A2AOperation::SubscribeTask { task_id } => format!("/tasks/{}/stream", task_id),
-            A2AOperation::RegisterWebhook { .. } => "/webhooks".to_string(),
+            A2AOperation::SubscribeTask { task_id } => format!("/v1/tasks/{}:stream", task_id),
+            A2AOperation::RegisterWebhook { .. } => "/v1/webhooks".to_string(),
         }
     }
 
@@ -134,14 +134,20 @@ mod tests {
             context_id: None,
             task_id: None,
         };
-        assert_eq!(op.endpoint(), "/tasks");
+        assert_eq!(op.endpoint(), "/v1/tasks");
         assert_eq!(op.method(), "POST");
 
         let op = A2AOperation::GetTask {
             task_id: "task-123".to_string(),
         };
-        assert_eq!(op.endpoint(), "/tasks/task-123");
+        assert_eq!(op.endpoint(), "/v1/tasks/task-123");
         assert_eq!(op.method(), "GET");
+
+        let op = A2AOperation::CancelTask {
+            task_id: "task-123".to_string(),
+        };
+        assert_eq!(op.endpoint(), "/v1/tasks/task-123:cancel");
+        assert_eq!(op.method(), "POST");
 
         let op = A2AOperation::DiscoverAgent;
         assert_eq!(op.endpoint(), "/.well-known/agent-card.json");

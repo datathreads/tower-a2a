@@ -62,10 +62,15 @@ impl<S> A2AValidationService<S> {
                                 ));
                             }
                         }
-                        MessagePart::File { file_uri, .. } => {
-                            if file_uri.is_empty() {
+                        MessagePart::File { file } => {
+                            if file.name.is_empty() {
                                 return Err(A2AError::Validation(
-                                    "File URI cannot be empty".into(),
+                                    "File name cannot be empty".into(),
+                                ));
+                            }
+                            if file.file_with_uri.is_none() && file.file_with_bytes.is_none() {
+                                return Err(A2AError::Validation(
+                                    "File must have either URI or bytes content".into(),
                                 ));
                             }
                         }
@@ -137,13 +142,13 @@ impl<S> A2AValidationService<S> {
                     ));
                 }
 
-                // If task is completed, it should have output or error
+                // If task is completed, it should have artifacts or error
                 if task.status == TaskStatus::Completed
-                    && task.output.is_none()
+                    && task.artifacts.is_empty()
                     && task.error.is_none()
                 {
                     return Err(A2AError::Validation(
-                        "Completed task must have output or error".into(),
+                        "Completed task must have artifacts or error".into(),
                     ));
                 }
 

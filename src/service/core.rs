@@ -49,9 +49,10 @@ where
 
         let mut transport_req = TransportRequest::new(endpoint, method);
 
-        // Add content type header
+        // Add required A2A protocol headers
         transport_req = transport_req.header("Content-Type", codec.content_type());
         transport_req = transport_req.header("Accept", codec.content_type());
+        transport_req = transport_req.header("A2A-Version", "1.0");
 
         // Add authentication headers if present
         if let Some(auth) = &req.context.auth {
