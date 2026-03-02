@@ -4,22 +4,22 @@
 
 ### Task
 The core unit of work with lifecycle management.
-- `taskId`: (string) Server-generated unique identifier.
+- `id`: (string) Server-generated unique identifier.
 - `contextId`: (string) Logical grouping for related tasks.
 - `status`: ([TaskStatus](#taskstatus)) Current state indicator.
-- `history`: (Array of [Message](#message)) Conversation history.
+- `state`: ([TaskState](#taskstate)) Current state enum value (also present inside `status`).
+- `messages`: (Array of [Message](#message), optional) Conversation history (replaces `history` from v0.3).
 - `artifacts`: (Array of [Artifact](#artifact)) Generated outputs.
-- `createdTime`: (string) ISO 8601 timestamp.
-- `updatedTime`: (string) ISO 8601 timestamp.
-- `metadata`: (object) Flexible key-value context.
+- `createdTime`: (string, optional) ISO 8601 timestamp of creation.
+- `updatedTime`: (string, optional) ISO 8601 timestamp of last update.
 
 ### TaskStatus
 - `state`: ([TaskState](#taskstate)) Current state enum.
-- `message`: (string) Human-readable progress update.
-- `timestamp`: (string) ISO 8601 formatted timestamp.
+- `timestamp`: (string, optional) ISO 8601 formatted timestamp.
 
 ### TaskState
-Enum values:
+Enum values (SCREAMING_SNAKE_CASE):
+- `CREATED` — Task has been created, not yet started.
 - `WORKING` — Processing in progress.
 - `COMPLETED` — Successfully finished.
 - `FAILED` — Encountered error.
@@ -29,90 +29,121 @@ Enum values:
 - `AUTH_REQUIRED` — Secondary authentication needed.
 
 ### Message
-- `messageId`: (string) Optional unique identifier.
 - `role`: (string) `"user"` or `"agent"`.
 - `parts`: (Array of [Part](#part)) Content segments.
-- `timestamp`: (string) ISO 8601 timestamp.
+- `contextId`: (string, optional) Context grouping identifier.
+- `taskId`: (string, optional) Associated task identifier.
+- `messageId`: (string, optional) Unique message identifier.
+- `referenceTaskIds`: (string[], optional) IDs of tasks this message references.
 
-### Part (Union)
-Parts are defined as a formal union of types:
-- **Text**: `{ "text": string }`
-- **File**: `{ "file": { "uri": string, ... }, "mimeType": string }`
-- **StructuredData**: `{ "structuredData": object }` (JSON-serializable structured content)
-- `mimeType`: (string) Media type descriptor (top-level on Part).
+### Part (Flat Struct)
+Parts are flat structs (proto3 oneof style) — exactly one content field should be populated:
+- `text`: (string, optional) Plain text content.
+- `mimeType`: (string, optional) Media type descriptor for this part.
+- `data`: (any, optional) Structured JSON-serializable content.
+- `fileUri`: (string, optional) URI reference to a file resource.
 
 ### Artifact
 - `artifactId`: (string) Unique identifier.
+- `name`: (string, optional) Display name.
+- `description`: (string, optional) Purpose explanation.
 - `parts`: (Array of [Part](#part)) Constituent content.
-- `mimeType`: (string) Primary media type.
-- `metadata`: (object) Additional context.
+- `metadata`: (object, optional) Additional context.
+- `extensions`: (string[], optional) Extension URIs.
 
 ---
 
 ## 2. Discovery & Identity
 
 ### AgentCard
-Standardized metadata for agent discovery, typically served at `/.well-known/agent-card.json`.
+Standardized metadata for agent discovery, served at `/.well-known/agent-card.json`.
 - `id`: (string) Agent identifier.
 - `name`: (string) Display name.
 - `description`: (string) Purpose summary.
 - `provider`: ([AgentProvider](#agentprovider)) Organization details.
-- `interface`: ([AgentInterface](#agentinterface)) Protocol and endpoint information.
 - `capabilities`: ([AgentCapabilities](#agentcapabilities)) Feature declarations.
 - `skills`: (Array of [AgentSkill](#agentskill)) Task-specific competencies.
-- `extensions`: (Array of [AgentExtension](#agentextension)) Optional enhancements.
-- `securitySchemes`: (object) Authentication method definitions.
-- `security`: (Array) Required schemes for operations.
-- `signature`: ([AgentCardSignature](#agentcardsignature)) Cryptographic verification.
+- `interfaces`: (Array of [AgentInterface](#agentinterface)) Protocol and endpoint information (plural, replaces `interface` from earlier drafts).
+- `version`: (string) Agent version string.
+- `extensions`: (Array of [AgentExtension](#agentextension), optional) Optional enhancements.
+- `securitySchemes`: (object, optional) Authentication method definitions.
+- `security`: (Array, optional) Required schemes for operations.
+- `signature`: ([AgentCardSignature](#agentcardsignature), optional) Cryptographic verification.
+
+### AgentProvider
+- `id`: (string) Provider identifier.
+- `name`: (string) Organization or provider name.
+- `description`: (string, optional) Provider description.
 
 ### AgentInterface
-- `protocol`: (string) `"json-rpc"`, `"grpc"`, `"http"`, or custom.
-- `endpoint`: (string) Service URL or connection details.
-- `version`: (string) Interface version number.
+- `type`: (string) Protocol type: `"json-rpc"`, `"grpc"`, `"http"`, or custom.
+- `uri`: (string URL) Service endpoint URI.
 
 ### AgentCapabilities
-- `streaming`: (boolean) Real-time event delivery support.
-- `pushNotifications`: (boolean) Webhook delivery capability.
-- `extendedAgentCard`: (boolean) Authenticated detailed card availability.
-- `multiTurn`: (boolean) Conversation context maintenance.
+- `streaming`: (boolean, optional) Real-time SSE event delivery support.
+- `pushNotifications`: (boolean, optional) Webhook delivery capability.
+- `extendedAgentCard`: (boolean, optional) Authenticated detailed card availability.
 
 ### AgentSkill
 - `id`: (string) Skill identifier.
 - `name`: (string) Human-readable name.
 - `description`: (string) Capability overview.
-- `inputSchema`: (object) Expected input structure.
-- `outputSchema`: (object) Produced output structure.
-- `acceptedMimeTypes`: (string[]) Supported content types.
+- `tags`: (string[]) Categorical keywords.
+- `examples`: (string[], optional) Usage examples.
+- `inputModes`: (string[], optional) Supported input MIME types.
+- `outputModes`: (string[], optional) Supported output MIME types.
+
+### AgentExtension
+- `uri`: (string) Unique extension identifier.
+- `description`: (string, optional) Extension usage explanation.
+- `required`: (boolean, optional) Whether client compliance is required.
+- `params`: (object, optional) Extension-specific configuration.
+
+### AgentCardSignature
+JWS signature per RFC 7515.
+- `protected`: (string) Base64url-encoded JSON object.
+- `signature`: (string) Computed signature, Base64url-encoded.
+- `header`: (object, optional) Unprotected JWS header values.
 
 ---
 
 ## 3. Operations (Abstract Methods)
-These operations are binding-agnostic and map to JSON-RPC methods, REST endpoints, or gRPC RPCs.
 
-| Operation | Input | Output |
-| :--- | :--- | :--- |
-| **SendMessage** | `SendMessageRequest` | `Task \| Message` |
-| **SendStreamingMessage** | `SendMessageRequest` | `Stream[Task \| Message \| TaskStatusUpdateEvent \| TaskArtifactUpdateEvent]` |
-| **GetTask** | `taskId`, `historyLength?` | `Task` |
-| **ListTasks** | `contextId?`, `status?`, `pageSize?`, `pageToken?`, `historyLength?`, `statusTimestampAfter?`, `includeArtifacts?` | `ListTasksResponse` |
-| **CancelTask** | `taskId` | `Task` |
-| **SubscribeToTask** | `taskId` | `Stream[Task \| TaskStatusUpdateEvent \| TaskArtifactUpdateEvent]` |
-| **CreateTaskPushNotificationConfig** | `taskId`, `configId`, `PushNotificationConfig` | `PushNotificationConfig` |
-| **GetTaskPushNotificationConfig** | `taskId`, `configId` | `PushNotificationConfig` |
-| **ListTaskPushNotificationConfig** | `taskId`, `pageSize?`, `pageToken?` | `ListPushNotificationConfigResponse` |
-| **DeleteTaskPushNotificationConfig** | `taskId`, `configId` | Confirmation |
-| **GetExtendedAgentCard** | (authenticated) | `AgentCard` |
+These operations map to JSON-RPC methods with `A2A.` prefix.
+
+| Operation | JSON-RPC Method | Input | Output |
+| :--- | :--- | :--- | :--- |
+| **SendMessage** | `A2A.SendMessage` | `SendMessageRequest` | `Task \| Message` |
+| **SendStreamingMessage** | `A2A.SendStreamingMessage` | `SendMessageRequest` | SSE stream of events |
+| **GetTask** | `A2A.GetTask` | `taskId`, `historyLength?` | `Task` |
+| **ListTasks** | `A2A.ListTasks` | `ListTasksParams` | `ListTasksResponse` |
+| **CancelTask** | `A2A.CancelTask` | `taskId` | `Task` |
+| **SubscribeToTask** | `A2A.SubscribeToTask` | `taskId` | SSE stream |
+| **CreateTaskPushNotificationConfig** | `A2A.CreateTaskPushNotificationConfig` | `taskId`, `PushNotificationConfig` | `PushNotificationConfig` |
+| **GetTaskPushNotificationConfig** | `A2A.GetTaskPushNotificationConfig` | `taskId`, `id` | `PushNotificationConfig` |
+| **ListTaskPushNotificationConfigs** | `A2A.ListTaskPushNotificationConfigs` | `taskId`, pagination params | `ListPushNotificationConfigsResponse` |
+| **DeleteTaskPushNotificationConfig** | `A2A.DeleteTaskPushNotificationConfig` | `taskId`, `id` | (empty) |
+| **GetExtendedAgentCard** | `A2A.GetExtendedAgentCard` | (authenticated) | `AgentCard` |
+
+### ListTasksParams
+- `contextId`: (string, optional) Filter by context.
+- `status`: ([TaskState](#taskstate), optional) Filter by task state.
+- `pageSize`: (integer, optional) Max results per page.
+- `pageToken`: (string, optional) Cursor for pagination.
+- `historyLength`: (integer, optional) Number of messages to include.
+- `statusTimestampAfter`: (string, optional) Filter tasks updated after this ISO 8601 timestamp.
+- `includeArtifacts`: (boolean, optional) Whether to include artifacts in results.
+- `tenant`: (string, optional) Tenant scoping identifier.
 
 ### SendMessageRequest
-- `message`: (Message, required) Content to send.
-- `configuration`: (SendMessageConfiguration) Behavior options.
-- `metadata`: (object) Context parameters.
+- `message`: ([Message](#message), required) Content to send.
+- `configuration`: ([SendMessageConfiguration](#sendmessageconfiguration), optional) Behavior options.
 
 ### SendMessageConfiguration
-- `acceptedOutputModes`: (string[]) Preferred response types.
-- `pushNotificationConfig`: (PushNotificationConfig) Webhook setup.
-- `historyLength`: (integer) Message retrieval limit.
-- `blocking`: (boolean) Wait for completion (default: false).
+- `acceptedOutputModes`: (string[], optional) Preferred response MIME types.
+- `pushNotificationConfig`: ([PushNotificationConfig](#pushnotificationconfig), optional) Webhook setup.
+- `historyLength`: (integer, optional) Message retrieval limit.
+- `blocking`: (boolean, optional) Wait for completion (default: false).
 
 ---
 
@@ -125,24 +156,25 @@ These operations are binding-agnostic and map to JSON-RPC methods, REST endpoint
   - `Authorization`: Authentication credentials.
   - `Content-Type`: Request media type.
 - **REST Mappings**:
-  - `POST /messages` → `SendMessage`
-  - `POST /messages/stream` → `SendStreamingMessage`
-  - `GET /tasks/{id}` → `GetTask`
-  - `GET /tasks` → `ListTasks`
-  - `DELETE /tasks/{id}` → `CancelTask`
-  - `GET /tasks/{id}/stream` → `SubscribeToTask`
-  - `POST /tasks/{id}/notifications` → `CreateTaskPushNotificationConfig`
-  - `GET /tasks/{id}/notifications/{configId}` → `GetTaskPushNotificationConfig`
-  - `GET /tasks/{id}/notifications` → `ListTaskPushNotificationConfig`
-  - `DELETE /tasks/{id}/notifications/{configId}` → `DeleteTaskPushNotificationConfig`
-  - `GET /agent-card` → `GetExtendedAgentCard` (authenticated)
+  - `POST /messages` → `A2A.SendMessage`
+  - `POST /messages/stream` → `A2A.SendStreamingMessage`
+  - `GET /tasks/{id}` → `A2A.GetTask`
+  - `GET /tasks` → `A2A.ListTasks`
+  - `POST /tasks/{id}/cancel` → `A2A.CancelTask`
+  - `GET /tasks/{id}/subscribe` → `A2A.SubscribeToTask`
+  - `POST /tasks/{id}/pushNotificationConfigs` → `A2A.CreateTaskPushNotificationConfig`
+  - `GET /tasks/{id}/pushNotificationConfigs/{configId}` → `A2A.GetTaskPushNotificationConfig`
+  - `GET /tasks/{id}/pushNotificationConfigs` → `A2A.ListTaskPushNotificationConfigs`
+  - `DELETE /tasks/{id}/pushNotificationConfigs/{configId}` → `A2A.DeleteTaskPushNotificationConfig`
+  - `GET /.well-known/agent-card.json` → discovery (unauthenticated)
+  - `GET /agent-card` → `A2A.GetExtendedAgentCard` (authenticated)
 - **Query Parameters**: Lowercase snake_case naming (`context_id`, `page_size`, `page_token`, `history_length`, `include_artifacts`, `status`, `status_timestamp_after`).
 - **Response Format**:
   - Success: HTTP 200-299 with JSON body.
   - Errors: HTTP 4xx/5xx with error object containing `code`, `message`, `details`.
 
 ### JSON-RPC Binding
-- **Method Naming**: Uses `A2A.` prefix with CamelCase (e.g., `A2A.SendMessage`, `A2A.GetTask`).
+- **Method Naming**: Uses `A2A.` prefix with PascalCase (e.g., `A2A.SendMessage`, `A2A.GetTask`).
 - **Structure**: Standard JSON-RPC 2.0 envelopes.
   ```json
   {
@@ -192,11 +224,7 @@ These operations are binding-agnostic and map to JSON-RPC methods, REST endpoint
 - `scheme`: (string) `"basic"`, `"bearer"`, or custom.
 
 **OAuth2SecurityScheme**:
-- `flows`: (OAuthFlows) Authorization code, client credentials, device code.
-- `tokenUrl`: (string) Token endpoint.
-- `authorizationUrl`: (string) User authorization endpoint.
-- `refreshUrl`: (string) Token refresh endpoint.
-- `scopes`: (object) Requested permissions.
+- `flows`: ([OAuthFlows](#oauthflows)) Authorization code, client credentials, device code flows.
 
 **OpenIdConnectSecurityScheme**:
 - `openIdConnectUrl`: (string) Discovery endpoint.
@@ -204,9 +232,30 @@ These operations are binding-agnostic and map to JSON-RPC methods, REST endpoint
 **MutualTLSSecurityScheme**:
 - Certificate-based mutual authentication.
 
+### OAuthFlows
+- `authorizationCode`: ([AuthorizationCodeOAuthFlow](#authorizationcodeoauthflow), optional)
+- `clientCredentials`: ([ClientCredentialsOAuthFlow](#clientcredentialsoauthflow), optional)
+- `deviceCode`: ([DeviceCodeOAuthFlow](#devicecodeoauthflow), optional)
+
+### AuthorizationCodeOAuthFlow
+- `authorizationUrl`: (string URL) Authorization endpoint.
+- `tokenUrl`: (string URL) Token endpoint.
+- `refreshUrl`: (string URL, optional) Token refresh endpoint.
+- `scopes`: (Map\<string, string\>) Available scopes.
+
+### ClientCredentialsOAuthFlow
+- `tokenUrl`: (string URL) Token endpoint.
+- `refreshUrl`: (string URL, optional) Token refresh endpoint.
+- `scopes`: (Map\<string, string\>) Available scopes.
+
+### DeviceCodeOAuthFlow
+- `tokenUrl`: (string URL) Token endpoint.
+- `deviceAuthorizationUrl`: (string URL) Device authorization endpoint.
+- `scopes`: (Map\<string, string\>) Available scopes.
+
 ### Integrity & Verification
 - **Agent Card Signing**: Canonicalization with fields sorted lexicographically, compact JSON representation. Signature is base64-encoded hash with algorithm identifier. Clients validate using published public key or JWKS endpoint.
-- **Transport Security**: HTTPS/TLS required for all HTTP bindings. TLS for gRPC connections.
+- **Transport Security**: HTTPS/TLS required for all HTTP bindings.
 
 ### Authorization Scoping
 - Agents MUST enforce user/client authorization for task access.
@@ -216,13 +265,11 @@ These operations are binding-agnostic and map to JSON-RPC methods, REST endpoint
 
 ### Push Notification Security
 
-**AuthenticationInfo**:
-- `scheme`: (string) `"bearer"`, `"basic"`, `"api_key"`.
-- `headerName`: (string) Header for credential transmission.
-- `value`: (string) Credential (bearer token, API key).
+**PushNotificationConfig**:
+- `url`: (string URL) Webhook endpoint.
+- `authentication`: ([PushNotificationAuthInfo](#pushnotificationauthinfo), optional) Credentials for webhook calls.
 
-**Webhook Delivery**:
-- HTTP POST to client-provided URL.
-- Credentials sent in request headers/query parameters.
-- TLS certificate validation recommended.
-- Agents retry failed deliveries (implementation-defined policy).
+**PushNotificationAuthInfo**:
+- `scheme`: (string) `"bearer"`, `"basic"`, `"api_key"`.
+- `headerName`: (string, optional) Header for credential transmission.
+- `value`: (string, optional) Credential value (bearer token, API key).

@@ -22,13 +22,6 @@ pub enum A2AError {
     #[error("Authentication error: {0}")]
     Auth(String),
 
-    /// Task-specific error
-    #[error("Task error: {source}")]
-    Task {
-        #[from]
-        source: TaskError,
-    },
-
     /// Serialization/deserialization error
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
@@ -70,7 +63,6 @@ pub struct TaskError {
 }
 
 impl TaskError {
-    /// Create a new task error
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             code: code.into(),
@@ -79,7 +71,6 @@ impl TaskError {
         }
     }
 
-    /// Add details to the task error
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self
