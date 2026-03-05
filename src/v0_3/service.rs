@@ -7,16 +7,17 @@ use std::{
     task::{Context, Poll},
 };
 
+use futures::Stream;
 use tower_service::Service;
 
 use crate::common::{
     auth::A2ARequest,
     error::A2AError,
-    transport::{Transport, TransportRequest},
+    transport::{HttpTransport, Transport, TransportRequest},
 };
 
 use super::{
-    codec::Codec,
+    codec::{Codec, SseCodec, SseEvent},
     types::{A2AResponse, Operation},
 };
 
@@ -116,5 +117,17 @@ impl<T: Clone> Clone for A2AProtocolService<T> {
             transport: self.transport.clone(),
             codec: self.codec.clone(),
         }
+    }
+}
+
+impl A2AProtocolService<HttpTransport> {
+    /// Execute a streaming SSE request (for `message/stream` operations).
+    pub async fn stream_operation(
+        &self,
+        req: A2ARequest<Operation>,
+    ) -> Result<impl Stream<Item = Result<SseEvent, A2AError>>, A2AError> {
+        let transport_req = Self::build_transport_request(&req, self.codec.as_ref())?;
+        let event_stream = self.transport.execute_streaming(transport_req).await?;
+        Ok(SseCodec::new().parse_event_stream(event_stream))
     }
 }

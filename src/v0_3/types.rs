@@ -85,6 +85,7 @@ pub enum TaskState {
     Failed,
     Canceled,
     AuthRequired,
+    InputRequired,
 }
 
 impl TaskState {
@@ -101,6 +102,15 @@ impl TaskState {
 pub struct Message {
     pub role: Role,
     pub parts: Vec<Part>,
+
+    #[serde(rename = "taskId", skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
+
+    #[serde(rename = "contextId", skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 impl Message {
@@ -108,6 +118,9 @@ impl Message {
         Self {
             role: Role::User,
             parts: vec![Part::text(text)],
+            task_id: None,
+            context_id: None,
+            metadata: None,
         }
     }
 
@@ -115,6 +128,9 @@ impl Message {
         Self {
             role: Role::Agent,
             parts: vec![Part::text(text)],
+            task_id: None,
+            context_id: None,
+            metadata: None,
         }
     }
 }
@@ -489,6 +505,42 @@ mod tests {
             serde_json::to_string(&TaskState::Canceled).unwrap(),
             "\"canceled\""
         );
+        assert_eq!(
+            serde_json::to_string(&TaskState::InputRequired).unwrap(),
+            "\"input-required\""
+        );
+    }
+
+    #[test]
+    fn test_input_required_not_terminal() {
+        assert!(!TaskState::InputRequired.is_terminal());
+        assert!(!TaskState::AuthRequired.is_terminal());
+    }
+
+    #[test]
+    fn test_message_optional_fields() {
+        let msg = Message {
+            role: Role::User,
+            parts: vec![Part::text("Hello")],
+            task_id: Some("task-1".into()),
+            context_id: Some("ctx-1".into()),
+            metadata: None,
+        };
+        let json = serde_json::to_value(&msg).unwrap();
+        assert_eq!(json["taskId"], "task-1");
+        assert_eq!(json["contextId"], "ctx-1");
+        assert!(json.get("metadata").is_none());
+    }
+
+    #[test]
+    fn test_message_constructors_have_none_fields() {
+        let msg = Message::user("Hello");
+        assert!(msg.task_id.is_none());
+        assert!(msg.context_id.is_none());
+        assert!(msg.metadata.is_none());
+        let json = serde_json::to_value(&msg).unwrap();
+        assert!(json.get("taskId").is_none());
+        assert!(json.get("contextId").is_none());
     }
 
     #[test]

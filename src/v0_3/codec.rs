@@ -223,42 +223,56 @@ impl SseCodec {
         S: Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
     {
         byte_stream.eventsource().map(|result| match result {
-            Ok(event) => {
-                let jsonrpc: Value =
-                    serde_json::from_str(&event.data).map_err(|e| {
-                        A2AError::Protocol(format!("Failed to parse SSE event: {}", e))
-                    })?;
-
-                if let Some(error) = jsonrpc.get("error") {
-                    let msg = error
-                        .get("message")
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("Unknown error");
-                    return Err(A2AError::Protocol(format!("SSE stream error: {}", msg)));
-                }
-
-                let result = jsonrpc.get("result").ok_or_else(|| {
-                    A2AError::Protocol("SSE event missing 'result' field".to_string())
-                })?;
-
-                let final_event = result
-                    .get("final")
-                    .and_then(|f| f.as_bool())
-                    .unwrap_or(false);
-
-                let kind = result
-                    .get("kind")
-                    .and_then(|k| k.as_str())
-                    .unwrap_or("event")
-                    .to_string();
-
-                Ok(SseEvent {
-                    kind,
-                    payload: result.clone(),
-                    final_event,
-                })
-            }
+            Ok(event) => Self::parse_sse_data(&event.data),
             Err(e) => Err(A2AError::Transport(format!("SSE stream error: {}", e))),
+        })
+    }
+
+    /// Parse an already-decoded SSE event stream (e.g., from `HttpTransport::execute_streaming`).
+    pub fn parse_event_stream<S>(
+        &self,
+        event_stream: S,
+    ) -> impl Stream<Item = Result<SseEvent, A2AError>>
+    where
+        S: Stream<Item = Result<eventsource_stream::Event, A2AError>> + Send + 'static,
+    {
+        event_stream.map(|result| match result {
+            Ok(event) => Self::parse_sse_data(&event.data),
+            Err(e) => Err(e),
+        })
+    }
+
+    fn parse_sse_data(data: &str) -> Result<SseEvent, A2AError> {
+        let jsonrpc: Value = serde_json::from_str(data)
+            .map_err(|e| A2AError::Protocol(format!("Failed to parse SSE event: {}", e)))?;
+
+        if let Some(error) = jsonrpc.get("error") {
+            let msg = error
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown error");
+            return Err(A2AError::Protocol(format!("SSE stream error: {}", msg)));
+        }
+
+        let result = jsonrpc.get("result").ok_or_else(|| {
+            A2AError::Protocol("SSE event missing 'result' field".to_string())
+        })?;
+
+        let final_event = result
+            .get("final")
+            .and_then(|f| f.as_bool())
+            .unwrap_or(false);
+
+        let kind = result
+            .get("kind")
+            .and_then(|k| k.as_str())
+            .unwrap_or("event")
+            .to_string();
+
+        Ok(SseEvent {
+            kind,
+            payload: result.clone(),
+            final_event,
         })
     }
 }

@@ -51,13 +51,13 @@ impl AuthCredentials {
     pub fn to_header(&self) -> (String, String) {
         match self {
             AuthCredentials::Bearer(token) => {
-                ("Authorization".to_string(), format!("Bearer {}", token))
+                ("Authorization".to_string(), format!("Bearer {token}"))
             }
             AuthCredentials::ApiKey { key, header } => (header.clone(), key.clone()),
             AuthCredentials::Basic { username, password } => {
-                let credentials = format!("{}:{}", username, password);
+                let credentials = format!("{username}:{password}");
                 let encoded = general_purpose::STANDARD.encode(credentials.as_bytes());
-                ("Authorization".to_string(), format!("Basic {}", encoded))
+                ("Authorization".to_string(), format!("Basic {encoded}"))
             }
         }
     }

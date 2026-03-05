@@ -1,7 +1,8 @@
 //! v0.3.0 client builder and agent client
 
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use futures::Stream;
 use tower_service::Service;
 use url::Url;
 
@@ -12,9 +13,9 @@ use crate::common::{
 };
 
 use super::{
-    codec::{Codec, JsonRpcCodec},
+    codec::{Codec, JsonRpcCodec, SseEvent},
     service::A2AProtocolService,
-    types::{AgentCard, A2AResponse, Message, Operation, Task},
+    types::{A2AResponse, AgentCard, Message, Operation, Task},
 };
 
 /// Configuration for the v0.3.0 A2A client
@@ -23,6 +24,8 @@ pub struct ClientConfig {
     pub agent_url: Url,
     pub timeout: Duration,
     pub max_retries: u32,
+    pub auth: Option<AuthCredentials>,
+    pub extra_headers: HashMap<String, String>,
 }
 
 impl ClientConfig {
@@ -31,6 +34,8 @@ impl ClientConfig {
             agent_url,
             timeout: Duration::from_secs(30),
             max_retries: 3,
+            auth: None,
+            extra_headers: HashMap::new(),
         }
     }
 
@@ -41,6 +46,16 @@ impl ClientConfig {
 
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = max_retries;
+        self
+    }
+
+    pub fn with_auth(mut self, auth: AuthCredentials) -> Self {
+        self.auth = Some(auth);
+        self
+    }
+
+    pub fn with_extra_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.extra_headers.insert(key.into(), value.into());
         self
     }
 }
@@ -64,7 +79,15 @@ where
     }
 
     fn context(&self) -> RequestContext {
-        RequestContext::new(self.config.agent_url.clone()).with_timeout(self.config.timeout)
+        let mut ctx =
+            RequestContext::new(self.config.agent_url.clone()).with_timeout(self.config.timeout);
+        if let Some(ref auth) = self.config.auth {
+            ctx = ctx.with_auth(auth.clone());
+        }
+        for (k, v) in &self.config.extra_headers {
+            ctx = ctx.with_metadata(k.clone(), v.clone());
+        }
+        ctx
     }
 
     /// Fetch the agent card
@@ -99,10 +122,7 @@ where
     pub async fn get_task(&mut self, id: String) -> Result<Task, A2AError> {
         let resp = self
             .service
-            .call(A2ARequest::new(
-                Operation::GetTask { id },
-                self.context(),
-            ))
+            .call(A2ARequest::new(Operation::GetTask { id }, self.context()))
             .await?;
         resp.into_task()
             .ok_or_else(|| A2AError::Protocol("Expected Task response".into()))
@@ -147,6 +167,27 @@ where
     }
 }
 
+impl AgentClient<A2AProtocolService<HttpTransport>> {
+    /// Stream a message via SSE (`message/stream` method).
+    pub async fn stream_message(
+        &mut self,
+        message: Message,
+    ) -> Result<impl Stream<Item = Result<SseEvent, A2AError>>, A2AError> {
+        let context = self.context();
+        self.service
+            .stream_operation(A2ARequest::new(
+                Operation::StreamMessage {
+                    message,
+                    task_id: None,
+                    skill_id: None,
+                    configuration: None,
+                },
+                context,
+            ))
+            .await
+    }
+}
+
 /// Builder for constructing v0.3.0 A2A clients
 pub struct A2AClientBuilder<T: Transport> {
     agent_url: Url,
@@ -155,6 +196,7 @@ pub struct A2AClientBuilder<T: Transport> {
     auth: Option<AuthCredentials>,
     timeout: Option<Duration>,
     max_retries: u32,
+    extra_headers: HashMap<String, String>,
 }
 
 impl<T: Transport> A2AClientBuilder<T> {
@@ -166,6 +208,7 @@ impl<T: Transport> A2AClientBuilder<T> {
             auth: None,
             timeout: Some(Duration::from_secs(30)),
             max_retries: 3,
+            extra_headers: HashMap::new(),
         }
     }
 
@@ -194,6 +237,16 @@ impl<T: Transport> A2AClientBuilder<T> {
         self
     }
 
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    pub fn with_extra_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.extra_headers.insert(key.into(), value.into());
+        self
+    }
+
     pub fn build(self) -> Result<AgentClient<A2AProtocolService<T>>, A2AError> {
         let transport = self
             .transport
@@ -204,6 +257,12 @@ impl<T: Transport> A2AClientBuilder<T> {
         let mut config = ClientConfig::new(self.agent_url).with_max_retries(self.max_retries);
         if let Some(timeout) = self.timeout {
             config = config.with_timeout(timeout);
+        }
+        if let Some(auth) = self.auth {
+            config = config.with_auth(auth);
+        }
+        for (k, v) in self.extra_headers {
+            config = config.with_extra_header(k, v);
         }
 
         Ok(AgentClient::new(service, config))
@@ -220,6 +279,7 @@ impl A2AClientBuilder<HttpTransport> {
             auth: None,
             timeout: Some(Duration::from_secs(30)),
             max_retries: 3,
+            extra_headers: HashMap::new(),
         }
     }
 }
@@ -232,5 +292,26 @@ mod tests {
     fn test_builder_new_http() {
         let client = A2AClientBuilder::new_http("https://example.com".parse().unwrap()).build();
         assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_builder_with_auth() {
+        let client = A2AClientBuilder::new_http("https://example.com".parse().unwrap())
+            .with_bearer_auth("test-token")
+            .build()
+            .unwrap();
+        assert!(client.config().auth.is_some());
+    }
+
+    #[test]
+    fn test_builder_with_extra_header() {
+        let client = A2AClientBuilder::new_http("https://example.com".parse().unwrap())
+            .with_extra_header("traceparent", "00-abc-def-01")
+            .build()
+            .unwrap();
+        assert_eq!(
+            client.config().extra_headers.get("traceparent"),
+            Some(&"00-abc-def-01".to_string())
+        );
     }
 }

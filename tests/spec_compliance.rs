@@ -19,12 +19,30 @@ mod v1 {
 
     #[test]
     fn test_task_state_screaming_snake_case() {
-        assert_eq!(serde_json::to_string(&TaskState::Created).unwrap(), "\"CREATED\"");
-        assert_eq!(serde_json::to_string(&TaskState::Working).unwrap(), "\"WORKING\"");
-        assert_eq!(serde_json::to_string(&TaskState::Completed).unwrap(), "\"COMPLETED\"");
-        assert_eq!(serde_json::to_string(&TaskState::Failed).unwrap(), "\"FAILED\"");
-        assert_eq!(serde_json::to_string(&TaskState::Canceled).unwrap(), "\"CANCELED\"");
-        assert_eq!(serde_json::to_string(&TaskState::Rejected).unwrap(), "\"REJECTED\"");
+        assert_eq!(
+            serde_json::to_string(&TaskState::Created).unwrap(),
+            "\"CREATED\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Working).unwrap(),
+            "\"WORKING\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Completed).unwrap(),
+            "\"COMPLETED\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Failed).unwrap(),
+            "\"FAILED\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Canceled).unwrap(),
+            "\"CANCELED\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Rejected).unwrap(),
+            "\"REJECTED\""
+        );
         assert_eq!(
             serde_json::to_string(&TaskState::InputRequired).unwrap(),
             "\"INPUT_REQUIRED\""
@@ -51,7 +69,10 @@ mod v1 {
 
     #[test]
     fn test_part_file_uri() {
-        let part = Part::file_uri("https://example.com/doc.pdf", Some("application/pdf".to_string()));
+        let part = Part::file_uri(
+            "https://example.com/doc.pdf",
+            Some("application/pdf".to_string()),
+        );
         let json = serde_json::to_value(&part).unwrap();
         assert_eq!(json["fileUri"], "https://example.com/doc.pdf");
         assert_eq!(json["mimeType"], "application/pdf");
@@ -269,7 +290,9 @@ mod v1 {
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["method"], "A2A.ListTasks");
 
-        let op = Operation::CancelTask { id: "t1".to_string() };
+        let op = Operation::CancelTask {
+            id: "t1".to_string(),
+        };
         let bytes = codec.encode_request(&op).unwrap();
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["method"], "A2A.CancelTask");
@@ -279,10 +302,7 @@ mod v1 {
     fn test_round_trip_serialization() {
         let msg = Message {
             role: Role::Agent,
-            parts: vec![
-                Part::text("Hello"),
-                Part::data(json!({"key": "value"})),
-            ],
+            parts: vec![Part::text("Hello"), Part::data(json!({"key": "value"}))],
             context_id: Some("ctx-1".to_string()),
             task_id: None,
             message_id: Some("msg-1".to_string()),
@@ -311,11 +331,26 @@ mod v0_3 {
 
     #[test]
     fn test_task_state_kebab_case() {
-        assert_eq!(serde_json::to_string(&TaskState::Queued).unwrap(), "\"queued\"");
-        assert_eq!(serde_json::to_string(&TaskState::Running).unwrap(), "\"running\"");
-        assert_eq!(serde_json::to_string(&TaskState::Completed).unwrap(), "\"completed\"");
-        assert_eq!(serde_json::to_string(&TaskState::Failed).unwrap(), "\"failed\"");
-        assert_eq!(serde_json::to_string(&TaskState::Canceled).unwrap(), "\"canceled\"");
+        assert_eq!(
+            serde_json::to_string(&TaskState::Queued).unwrap(),
+            "\"queued\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Running).unwrap(),
+            "\"running\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Completed).unwrap(),
+            "\"completed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Failed).unwrap(),
+            "\"failed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TaskState::Canceled).unwrap(),
+            "\"canceled\""
+        );
         assert_eq!(
             serde_json::to_string(&TaskState::AuthRequired).unwrap(),
             "\"auth-required\""
@@ -450,7 +485,9 @@ mod v0_3 {
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["method"], "tasks/get");
 
-        let op = Operation::CancelTask { id: "t1".to_string() };
+        let op = Operation::CancelTask {
+            id: "t1".to_string(),
+        };
         let bytes = codec.encode_request(&op).unwrap();
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["method"], "tasks/cancel");
@@ -473,6 +510,9 @@ mod v0_3 {
         let msg = Message {
             role: Role::User,
             parts: vec![Part::text("Hello")],
+            task_id: None,
+            context_id: None,
+            metadata: None,
         };
         let serialized = serde_json::to_string(&msg).unwrap();
         let deserialized: Message = serde_json::from_str(&serialized).unwrap();
@@ -595,8 +635,8 @@ mod v0_3 {
 
     #[test]
     fn test_sse_terminal_from_task_status_state() {
-        use tower_a2a::v0_3::codec::SseEvent;
         use serde_json::json;
+        use tower_a2a::v0_3::codec::SseEvent;
 
         // Terminal via taskStatus.state
         let event = SseEvent {
@@ -633,8 +673,8 @@ mod v0_3 {
 
     #[test]
     fn test_send_message_decodes_message_response() {
-        use tower_a2a::v0_3::codec::{Codec, JsonRpcCodec};
         use serde_json::json;
+        use tower_a2a::v0_3::codec::{Codec, JsonRpcCodec};
 
         let codec = JsonRpcCodec;
         let op = Operation::SendMessage {
